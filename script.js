@@ -8,36 +8,39 @@ let touchEndX = 0;
 let touchEndY = 0;
 
 let table = makeTable();
-let cueball = makeBall(160, 250, "#ffffdd");
+let cueball = makeBall(160, 320, "#ffffdd");
+let ball1 = makeBall(160,160, "gold");
+let ball2 = makeBall(146,142, "navy");
+let ball3 = makeBall(174,142, "crimson");
 setupTouch();
+cueball.xVel = 0.2;
+cueball.yVel = -8;
 animate();
 
 function makeBall(x, y, colorIn){
   const ball = {
+    inPlay: true,
     radius: 10,
     xPos: x,
     yPos: y,
-    xVel: 10,
-    yVel: 5.5,
+    xVel: 0,
+    yVel: 0,
     xAcc: 0,
     yAcc: 0,
-    friction: 0.98,
+    friction: 0.985,
     color: colorIn,
     draw: function(){
+      if (!this.inPlay) return;
       ctx.beginPath();
       ctx.arc(this.xPos, this.yPos, this.radius, 0, 2 * Math.PI);
       ctx.fillStyle = this.color;
       ctx.fill();
     },
     update: function(){
+      if (!this.inPlay) return;
       if (table.pocketable(this.xPos, this.yPos)){
-        this.xAcc = 0;
-        this.yAcc = 0;
-        this.xVel = 0;
-        this.yVel = 0;
-        this.xPos = 0;
-        this.yPos = 0;
-        this.color = "#222222";
+        this.stop();
+        this.isPlay = false;
       }
       this.xVel += this.xAcc;
       this.yVel += this.yAcc;
@@ -70,6 +73,10 @@ function makeBall(x, y, colorIn){
     push: function(dX, dY){
       this.xVel = dX / 20;
       this.yVel = dY / 20;
+    },
+    stop: function(){
+      this.xVel = 0;
+      this.yVel = 0;
     }
   };
   return ball;
@@ -89,7 +96,7 @@ function makeTable(){
       {x : canvas.width - 4, y : canvas.height - 4}
     ],
     draw: function(){
-      ctx.fillStyle  = "#008000";
+      ctx.fillStyle  = "darkgreen";
       ctx.fillRect(0,0,canvas.width,canvas.height);
       for (const loc of this.pockets){
         ctx.beginPath();
@@ -101,7 +108,6 @@ function makeTable(){
     pocketable: function(ballX, ballY){
       for (const loc of this.pockets){
         if( Math.hypot(ballX - loc.x, ballY - loc.y) < this.pocketRadius){
-          console.log("Pocketed");
           return true;
         }
       }
@@ -115,10 +121,50 @@ function animate(){
   // draw
   table.draw();
   cueball.draw();
+  ball1.draw();
+  ball2.draw();
+  ball3.draw();
   // update
   cueball.update();
+  ball1.update();
+  ball2.update();
+  ball3.update();
+  checkCollision(cueball, ball1);
+  checkCollision(cueball, ball2);
+  checkCollision(cueball, ball3);
+  checkCollision(ball1, ball2);
+  checkCollision(ball1, ball3);
+  checkCollision(ball2, ball3);
+
   // repeat
   window.requestAnimationFrame(animate);
+}
+
+function checkCollision(ballA, ballB){
+  // check for overlap using distance formula
+  const dist = Math.hypot(ballA.xPos - ballB.xPos, ballA.yPos - ballB.yPos);
+  const collisionRadius = ballA.radius + ballB.radius;
+  const overlap = dist - collisionRadius;
+  if (overlap >= 0) return false;  // no collision
+  
+  // calculate angle and x,y components of overlap
+  const nx = (ballB.xPos - ballA.xPos) / dist; 
+  const ny = (ballB.yPos - ballA.yPos) / dist;
+  
+  const collisionAngle = Math.atan2(ballA.yPos - ballB.yPos, ballA.xPos - ballB.xPos);
+  const xOverlap = overlap * nx; //Math.cos(collisionAngle);
+  const yOverlap = overlap * ny; //Math.sin(collisionAngle);
+  // move so not overlapping
+  ballA.xPos -= xOverlap / 2; 
+  ballA.yPos -= yOverlap / 2; 
+  ballB.xPos += xOverlap / 2; 
+  ballB.xPos += yOverlap / 2; 
+  
+  let p = (ballA.xVel * nx + ballA.yVel * ny - ballB.xVel * nx - ballB.yVel * ny); 
+  ballA.xVel -= p * nx; 
+  ballA.yVel -= p * ny; 
+  ballB.xVel += p * nx; 
+  ballB.yVel += p * ny; 
 }
 
 function setupTouch() {
